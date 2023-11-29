@@ -151,8 +151,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int mouX = 0;
 	int mouY = 0;
 
-	//const int kWhiteTex = Novice::LoadTexture("white1x1.png");
-	const int kParTex1 = Novice::LoadTexture("./player3.png");
+	const int kWhiteTex = Novice::LoadTexture("white1x1.png");
+	//const int kParTex1 = Novice::LoadTexture("./player3.png");
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -186,7 +186,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 			}
 		}
-		Display(par, kParTex1);
+		Display(par, kWhiteTex);
 
 		//IMGUI
 		ImGui::Begin("Particle");
