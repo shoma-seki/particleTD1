@@ -11,6 +11,7 @@ const int kParticleMax = 700;
 
 struct Emitter {
 	Vector2Array translate;
+	Vector2Array gatherTranslate;
 	Vector2Array scale;
 	Vector2 direction1;
 	Vector2 direction2;
@@ -20,6 +21,12 @@ struct Emitter {
 	int aliveRange;
 	int aliveTime;
 	int alpha;
+	int alphaStart;
+	int alphaEnd;
+	int alphaRange;
+	int alphaUnder;
+	int alphaFrame;
+	float alphaT;
 	int amount;
 	int scaleRange;
 	int scaleRangeUnder;
@@ -29,6 +36,7 @@ struct Emitter {
 	float acceleration;
 	float x;
 	float theta;
+	float directionThetaPlus;
 	float directionThetaX;
 	float directionTheta;
 	float directionThetaRange;
@@ -41,24 +49,33 @@ struct Emitter {
 	bool isMapCollisionIsActive;
 	bool isVelocityRandom;
 	bool isRotate;
+	bool isMainRotate;
 	bool isScaleRandom;
 	bool isAccelerating;
 	bool isGravity;
+	bool isGather;
+	bool isAlphaChange;
+	bool isAlphaRandom;
 };
 
 struct Particle {
 	Vector2Array translate[kParticleMax];
+	Vector2Array translateN[kParticleMax];
+	Vector2Array translateM[kParticleMax];
 	Vector2Array scale[kParticleMax];
 	Vector2 direction[kParticleMax];
 	float velocity[kParticleMax];
 	float acceleration[kParticleMax];
 	float x[kParticleMax];
-	float theta[kParticleMax];
+	float subTheta[kParticleMax];
 	float directionThetaX[kParticleMax];
 	float directionTheta[kParticleMax];
 	int aliveRange[kParticleMax];
 	int aliveTime[kParticleMax];
 	int alpha[kParticleMax];
+	int alphaStart[kParticleMax];
+	int alphaEnd[kParticleMax];
+	float alphaT[kParticleMax];
 	int count[kParticleMax];
 	bool isActive[kParticleMax];
 	unsigned int color[kParticleMax];
@@ -87,6 +104,7 @@ const int MapSizeY = 22;
 void Emit(Emitter& emit, Particle& par);
 void Move(Particle& par, Emitter& emit, int Map[MapSizeY][MapSizeX]);
 void Display(Particle par, const int texture);
+int LinearInterpolation(int start, int end, float t);
 
 const char kWindowTitle[] = "学籍番号";
 
@@ -143,6 +161,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	emit.velocityRangeUnder = 1;
 	emit.scaleRange = 1;
 	emit.scaleRangeUnder = 1;
+	emit.alphaRange = 1;
+
 	for (int i = 0; i < kParticleMax; i++) {
 		par.color[i] = 0xFFFFFF;
 		par.isActive[i] = false;
@@ -197,15 +217,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat("velocityRange", &emit.velocityRange, 1, 10);
 		ImGui::SliderFloat("velocityRangeUnder", &emit.velocityRangeUnder, 1, 10);
 		ImGui::SliderInt("amount", &emit.amount, 1, 10);
-		ImGui::SliderFloat("thetaRange", &emit.directionThetaRange, 1, 36);
-		ImGui::SliderFloat("thetaDirection", &emit.thetaDirectionX, 0, 1);
+		ImGui::SliderFloat("thetaRange", &emit.directionThetaRange, 1, 360);
+		ImGui::SliderFloat("thetaDirection", &emit.thetaDirectionX, 1, 360);
 		ImGui::SliderInt("aliveRange", &emit.aliveRange, 1, 360);
 		ImGui::SliderFloat("acceleration", &emit.acceleration, -3, 3);
+		ImGui::SliderFloat("directionThetaPlus", &emit.directionThetaPlus, -0.1f, 0.1f);
+		ImGui::SliderInt("alpha", &emit.alpha, 0, 255);
+		ImGui::SliderInt("alphaStart", &emit.alphaStart, 0, 255);
+		ImGui::SliderInt("alphaEnd", &emit.alphaEnd, 0, 255);
+		ImGui::SliderInt("alphaRange", &emit.alphaRange, 1, 255);
+		ImGui::SliderInt("alphaUnder", &emit.alphaUnder, 1, 255);
 		ImGui::Checkbox("isVelocityRandom", &emit.isVelocityRandom);
 		ImGui::Checkbox("isScaleRandom", &emit.isScaleRandom);
 		ImGui::Checkbox("isAll", &emit.isAll);
 		ImGui::Checkbox("isRotate", &emit.isRotate);
+		ImGui::Checkbox("isMainRotate", &emit.isMainRotate);
 		ImGui::Checkbox("isAccelerating", &emit.isAccelerating);
+		ImGui::Checkbox("isAlphaChange", &emit.isAlphaChange);
+		ImGui::Checkbox("isAlphaRandom", &emit.isAlphaRandom);
 		ImGui::Checkbox("isGravity", &emit.isGravity);
 		ImGui::End();
 
@@ -234,17 +263,25 @@ void Emit(Emitter& emit, Particle& par) {
 			emit.isVelocityRandom;
 			emit.scaleRange;
 			emit.direction1.x = 1;
-			emit.direction1.y = 1;
+			emit.direction1.y = 0;
+			emit.isAll;
+			emit.isAccelerating;
+			emit.isAlphaChange;
+			emit.isAlphaRandom;
+			emit.isGravity;
+			emit.isMainRotate;
+			emit.isRotate;
+			emit.isScaleRandom;
 			if (emit.isAll == false) {
 				emit.directionThetaRange;
-				emit.directionThetaX = (float)rand() / RAND_MAX;
-				emit.directionTheta = emit.directionThetaX * 180.0f / float(M_PI);
+				emit.directionThetaX = float(rand() % int(emit.directionThetaRange));
+				emit.directionTheta = emit.directionThetaX * float(M_PI) / 180.0f;
 				emit.direction3.x = emit.direction1.x * cosf(emit.directionTheta) - emit.direction1.y * sinf(emit.directionTheta);
 				emit.direction3.y = emit.direction1.x * sinf(emit.directionTheta) + emit.direction1.y * cosf(emit.directionTheta);
 				emit.direction3.x = Normalize(0, 0, emit.direction3.x, emit.direction3.y, 1);
 				emit.direction3.y = Normalize(0, 0, emit.direction3.x, emit.direction3.y, 2);
 				emit.thetaDirectionX;
-				emit.thetaDirection = emit.thetaDirectionX * 180.0f / float(M_PI);
+				emit.thetaDirection = emit.thetaDirectionX * float(M_PI) / 180.0f;
 				emit.direction4.x = emit.direction3.x * cosf(emit.thetaDirection) - emit.direction3.y * sinf(emit.thetaDirection);
 				emit.direction4.y = emit.direction3.x * sinf(emit.thetaDirection) + emit.direction3.y * cosf(emit.thetaDirection);
 				emit.direction4.x = Normalize(0, 0, emit.direction4.x, emit.direction4.y, 1);
@@ -266,7 +303,15 @@ void Emit(Emitter& emit, Particle& par) {
 			else {
 				emit.velocity;
 			}
-			emit.alpha = unsigned int(rand() % 30 + 170);
+			if (emit.isAlphaRandom == false) {
+				emit.alpha;
+			}
+			else {
+				emit.alpha = rand() % emit.alphaRange + emit.alphaUnder;
+			}
+			if (emit.isAlphaChange == true) {
+				emit.alphaStart = emit.alphaUnder;
+			}
 			emit.acceleration;
 			if (emit.isScaleRandom == true) {
 				emit.scale.vector2[0] = float(rand() % emit.scaleRange + emit.scaleRangeUnder);
@@ -277,10 +322,17 @@ void Emit(Emitter& emit, Particle& par) {
 			emit.scale.vector2[1] = emit.scale.vector2[0];
 			emit.x = float(rand() % 100 / 100);
 			emit.theta = emit.x * 180.0f / float(M_PI);
+			emit.alphaFrame = emit.aliveRange;
 			for (int j = 0; j < kParticleMax; j++) {
 				if (par.isActive[j] == false) {
-					par.translate[j].vector2[0] = emit.translate.vector2[0];
-					par.translate[j].vector2[1] = emit.translate.vector2[1];
+					if (emit.isMainRotate == false) {
+						par.translate[j].vector2[0] = emit.translate.vector2[0];
+						par.translate[j].vector2[1] = emit.translate.vector2[1];
+					}
+					else {
+						par.translate[j].vector2[0] = 0;
+						par.translate[j].vector2[1] = 0;
+					}
 					par.direction[j].x = emit.direction4.x;
 					par.direction[j].y = emit.direction4.y;
 					par.velocity[j] = emit.velocity;
@@ -289,11 +341,14 @@ void Emit(Emitter& emit, Particle& par) {
 					par.color[j] = 0xFFFFFF;
 					par.color[j] = par.color[j] << 8;
 					par.alpha[j] = emit.alpha;
+					par.alphaStart[j] = emit.alphaStart;
+					par.alphaEnd[j] = emit.alphaEnd;
+					par.alphaT[j] = emit.alphaT;
 					par.count[j] = 1;
 					par.scale[j] = emit.scale;
 					par.x[j] = 0;
-					par.theta[j] = par.x[j] * 180.0f / float(M_PI);
-					par.aliveTime[j] = emit.aliveRange;
+					par.subTheta[j] = par.x[j] * 180.0f / float(M_PI);
+					par.aliveTime[j] = 0;
 					par.isActive[j] = true;
 					break;
 				}
@@ -305,6 +360,11 @@ void Emit(Emitter& emit, Particle& par) {
 void Move(Particle& par, Emitter& emit, int Map[MapSizeY][MapSizeX]) {
 	for (int i = 0; i < kParticleMax; i++) {
 		if (par.isActive[i] == true) {
+			if (emit.isAlphaChange == true) {
+				par.aliveTime[i]++;
+				par.alphaT[i] = float(par.aliveTime[i] / emit.alphaFrame);
+				par.alpha[i] = LinearInterpolation(emit.alphaStart, emit.alphaEnd, par.alphaT[i]);
+			}
 			par.colorN[i] = par.color[i] + par.alpha[i];
 			if (emit.isMapCollisionIsActive == true) {
 				if (Map[int(par.worldLeftTop[i].vector2[1] / 32)][int(par.worldLeftTop[i].vector2[0] / 32)] == 1) {
@@ -315,18 +375,33 @@ void Move(Particle& par, Emitter& emit, int Map[MapSizeY][MapSizeX]) {
 					par.alpha[i]--;
 				}
 			}
+
 			if (emit.isGravity == true) {
-				emit.ty = 0.03f;
+				emit.ty += 0.03f;
 				par.direction[i].y = (1.0f - emit.ty) * par.direction[i].y + emit.ty * 1.0f;
-				emit.tx = 0.03f;
+				emit.tx += 0.03f;
 				par.direction[i].x = (1.0f - emit.tx) * par.direction[i].x + emit.tx * 0.0f;
 			}
 			else if (emit.isAccelerating == false) {
 				emit.acceleration = 0;
 			}
 			par.velocity[i] += par.acceleration[i];
-			par.translate[i].vector2[0] += par.direction[i].x * par.velocity[i];
-			par.translate[i].vector2[1] += par.direction[i].y * par.velocity[i];
+			if (emit.isMainRotate == true) {
+				par.directionTheta[i] += emit.directionThetaPlus;
+				par.translate[i].vector2[0] += par.direction[i].x * par.velocity[i];
+				par.translate[i].vector2[1] += par.direction[i].y * par.velocity[i];
+				par.translateN[i].vector2[0] = (par.translate[i].vector2[0] * cosf(par.directionTheta[i]) - par.translate[i].vector2[1] * sinf(par.directionTheta[i]));
+				par.translateN[i].vector2[1] = (par.translate[i].vector2[1] * cosf(par.directionTheta[i]) + par.translate[i].vector2[0] * sinf(par.directionTheta[i]));
+				par.translateM[i].vector2[0] = par.translateN[i].vector2[0] + emit.translate.vector2[0];
+				par.translateM[i].vector2[1] = par.translateN[i].vector2[1] + emit.translate.vector2[1];
+			}
+			else {
+				for (int j = 0; j < 2; j++) {
+					par.translate[i].vector2[0] += par.direction[i].x * par.velocity[i];
+					par.translate[i].vector2[1] += par.direction[i].y * par.velocity[i];
+					par.translateM[i].vector2[j] = par.translate[i].vector2[j];
+				}
+			}
 			par.colorN[i] = par.color[i] + par.alpha[i];
 			if (emit.isRotate == true) {
 				if (i % 2 == 0) {
@@ -336,8 +411,8 @@ void Move(Particle& par, Emitter& emit, int Map[MapSizeY][MapSizeX]) {
 					par.x[i] -= 0.002f;
 				}
 			}
-			par.theta[i] = par.x[i] * 180.0f / float(M_PI);
-			par.AffineMatrix[i] = MakeAffineMatrix(par.scale[i], par.theta[i], par.translate[i]);
+			par.subTheta[i] = par.x[i] * 180.0f / float(M_PI);
+			par.AffineMatrix[i] = MakeAffineMatrix(par.scale[i], par.subTheta[i], par.translateM[i]);
 			par.leftTop[i] = { 0,0 };
 			par.leftBottom[i] = { 0,par.scale[i].vector2[1] };
 			par.rightTop[i] = { par.scale[i].vector2[0],0 };
@@ -357,7 +432,13 @@ void Move(Particle& par, Emitter& emit, int Map[MapSizeY][MapSizeX]) {
 void Display(Particle par, const int texture) {
 	for (int i = 0; i < kParticleMax; i++) {
 		if (par.isActive[i] == true) {
-			VDrawQuad(par.worldLeftTop[i], par.worldLeftBottom[i], par.worldRightTop[i], par.worldRightBottom[i], texture);
+			VDrawQuad(par.worldLeftTop[i], par.worldLeftBottom[i], par.worldRightTop[i], par.worldRightBottom[i], texture, par.colorN[i]);
 		}
 	}
+}
+
+int LinearInterpolation(int start, int end, float t) {
+	int result{};
+	result = int((1.0f - t) * start + t * end);
+	return result;
 }

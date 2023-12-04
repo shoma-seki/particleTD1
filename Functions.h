@@ -114,4 +114,4 @@ void VertexDrawEllipse(Player player);
 void VertexDrawEllipseTmp(Player player);
 void CalculatePlayerVertexPrevious(Player& player);
 void CalculateQuadMapNumberPrevious(Player& player, const int MapChipSize);
-void VDrawQuad(Vector2Array lt, Vector2Array rt, Vector2Array lb, Vector2Array rb, int Tex);
+void VDrawQuad(Vector2Array lt, Vector2Array rt, Vector2Array lb, Vector2Array rb, int Tex,unsigned int color);

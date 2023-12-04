@@ -464,9 +464,9 @@ Matrix3x3 MakeAffineMatrix(Vector2Array scale, float theta, Vector2Array transla
 	return result;
 }
 
-void VDrawQuad(Vector2Array lt, Vector2Array rt, Vector2Array lb, Vector2Array rb, int Tex) {
+void VDrawQuad(Vector2Array lt, Vector2Array rt, Vector2Array lb, Vector2Array rb, int Tex,unsigned int color) {
 	Novice::DrawQuad(
 		int(lt.vector2[0]), int(lt.vector2[1]), int(rt.vector2[0]), int(rt.vector2[1]),
 		int(lb.vector2[0]), int(lb.vector2[1]), int(rb.vector2[0]), int(rb.vector2[1]), 0, 0, 48,
-		48, Tex, 0xFFFFFFFF);
+		48, Tex, color);
 }
